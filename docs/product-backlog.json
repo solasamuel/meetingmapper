@@ -1,0 +1,390 @@
+{
+  "product": "MeetingMapper",
+  "version": "1.0",
+  "documentDate": "2026-04-20",
+  "buildEstimate": "3 evenings",
+  "author": "Sola Samuel / Spearhead Finance Ltd",
+  "epics": [
+    {
+      "id": "EPIC-01",
+      "name": "Transcript Ingestion",
+      "goal": "Accept transcripts from paste, file upload, and live capture, normalising all sources to a common internal format.",
+      "stories": [
+        {
+          "id": "MM-101",
+          "title": "Paste transcript input",
+          "asA": "user",
+          "iWant": "to paste a raw transcript into a textarea in the popup",
+          "soThat": "I can process transcripts from Otter.ai, Zoom, or any external source",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Popup exposes a textarea that accepts arbitrary length text",
+            "Pasted text is detected for 'Name: text' speaker prefix pattern",
+            "If no speaker pattern is detected, transcript is treated as unlabelled",
+            "Submit button becomes enabled when textarea is non-empty"
+          ]
+        },
+        {
+          "id": "MM-102",
+          "title": "File upload for .txt / .vtt / .srt",
+          "asA": "user",
+          "iWant": "to upload a transcript file from my computer",
+          "soThat": "I can process downloaded Google Meet or Zoom transcript files",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "File input accepts .txt, .vtt, .srt extensions",
+            "File type is detected by extension and content sniff",
+            "Files over 10MB show a clear rejection message",
+            "Successfully parsed file populates the internal transcript buffer"
+          ]
+        },
+        {
+          "id": "MM-103",
+          "title": "VTT parser",
+          "asA": "developer",
+          "iWant": "a WebVTT state-machine parser",
+          "soThat": "VTT files become normalised transcript objects",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "WEBVTT header is skipped",
+            "Timestamp pairs (HH:MM:SS.mmm --> HH:MM:SS.mmm) are extracted",
+            "Speaker is inferred from 'Name: text' prefix inside cue text",
+            "Output is an array of {speaker, text, timestamp} objects"
+          ]
+        },
+        {
+          "id": "MM-104",
+          "title": "SRT parser",
+          "asA": "developer",
+          "iWant": "a SubRip parser",
+          "soThat": "SRT files become normalised transcript objects",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Numbered cue blocks are parsed correctly",
+            "Comma-separated millisecond timestamps are handled",
+            "Speaker inference matches VTT parser behaviour",
+            "Output shape is identical to VTT parser output"
+          ]
+        },
+        {
+          "id": "MM-105",
+          "title": "Plain text parser",
+          "asA": "developer",
+          "iWant": "a plain-text normaliser",
+          "soThat": "unstructured transcripts still flow through the same pipeline",
+          "priority": "medium",
+          "estimate": "S",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Detects 'Name: text' prefix on each line when present",
+            "Falls back to single unlabelled block when no pattern matches",
+            "Output shape matches VTT/SRT parsers"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EPIC-02",
+      "name": "Live Caption Capture",
+      "goal": "Capture live captions from Google Meet and Microsoft Teams via MutationObserver and persist per-tab.",
+      "stories": [
+        {
+          "id": "MM-201",
+          "title": "Google Meet caption content script",
+          "asA": "user",
+          "iWant": "the extension to capture live captions while I am in a Meet call",
+          "soThat": "I can process the meeting without downloading a transcript",
+          "priority": "high",
+          "estimate": "L",
+          "evening": 3,
+          "acceptanceCriteria": [
+            "Content script injects only on meet.google.com",
+            "MutationObserver watches caption container via structural selector / ARIA role (not class names)",
+            "Added nodes with non-empty textContent are buffered",
+            "Speaker label is extracted from sibling element when present",
+            "Buffer is persisted to chrome.storage.session keyed by tab id"
+          ]
+        },
+        {
+          "id": "MM-202",
+          "title": "Microsoft Teams caption content script",
+          "asA": "user",
+          "iWant": "caption capture to also work on Teams",
+          "soThat": "my workflow is identical regardless of platform",
+          "priority": "high",
+          "estimate": "L",
+          "evening": 3,
+          "acceptanceCriteria": [
+            "Content script injects only on teams.microsoft.com",
+            "Teams-specific caption selector logic is isolated from Meet logic",
+            "Output buffer shape is identical to Meet capture"
+          ]
+        },
+        {
+          "id": "MM-203",
+          "title": "Process current meeting button",
+          "asA": "user",
+          "iWant": "a single-click button to process whatever is buffered for the active tab",
+          "soThat": "I can generate notes the moment the meeting ends",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 3,
+          "acceptanceCriteria": [
+            "Button reads buffer from chrome.storage.session for the active tab",
+            "Disabled state when buffer is empty",
+            "Clicking sends buffer through the same pipeline as paste/upload"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EPIC-03",
+      "name": "Claude Structured Extraction",
+      "goal": "Send normalised transcripts to Claude and receive structured JSON output; handle long meetings via multi-pass chunking.",
+      "stories": [
+        {
+          "id": "MM-301",
+          "title": "Claude API single-pass extraction",
+          "asA": "user",
+          "iWant": "short transcripts to be processed in a single Claude call",
+          "soThat": "I get results quickly when the meeting is under ~10 minutes",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Background worker calls Claude with structured JSON output prompt",
+            "Response conforms to schema: action_items, decisions, open_questions, summary, attendees",
+            "Malformed responses surface a user-visible error",
+            "API key is read from extension settings, never hard-coded"
+          ]
+        },
+        {
+          "id": "MM-302",
+          "title": "Multi-pass chunking for long meetings",
+          "asA": "user",
+          "iWant": "2-hour transcripts to be processed accurately",
+          "soThat": "nothing important is lost to truncation",
+          "priority": "high",
+          "estimate": "L",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Transcripts over a word threshold are split into ~10-minute windows",
+            "Pass 1 extracts raw facts per chunk as JSON arrays",
+            "Pass 2 synthesises combined facts into final structured output",
+            "Total of two API calls for multi-pass (not one-per-chunk+synthesis)",
+            "Progress indicator shows 'Extracting facts...' then 'Synthesising output...'"
+          ]
+        },
+        {
+          "id": "MM-303",
+          "title": "Speaker diarisation cleanup",
+          "asA": "developer",
+          "iWant": "consecutive lines from the same speaker collapsed",
+          "soThat": "Claude sees clean dialogue and not fragmented captions",
+          "priority": "medium",
+          "estimate": "S",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Adjacent entries with identical speaker are merged",
+            "Timestamps on merged entries retain earliest start",
+            "Unlabelled blocks are left untouched"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EPIC-04",
+      "name": "Tabbed Results UI",
+      "goal": "Display structured output in the popup across dedicated tabs.",
+      "stories": [
+        {
+          "id": "MM-401",
+          "title": "Popup shell with tabs",
+          "asA": "user",
+          "iWant": "separate tabs for Action Items, Decisions, Open Questions, Summary, Attendee Map",
+          "soThat": "I can focus on one output at a time",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Five tabs render in the popup",
+            "Keyboard navigation between tabs works",
+            "Empty states are shown per tab when a section has no content"
+          ]
+        },
+        {
+          "id": "MM-402",
+          "title": "Action Items view",
+          "asA": "user",
+          "iWant": "to see tasks with owner, due date, and priority",
+          "soThat": "I can triage follow-ups at a glance",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Each item shows task, owner (or 'Unassigned'), due (or 'No date'), priority badge",
+            "Priority badge colour differs for high / medium / low",
+            "Checkbox renders next to each item for export"
+          ]
+        },
+        {
+          "id": "MM-403",
+          "title": "Decisions / Open Questions / Summary views",
+          "asA": "user",
+          "iWant": "clean rendering of the three textual outputs",
+          "soThat": "they read well before exporting",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Decisions display statement and attribution when present",
+            "Open Questions render as a bullet list",
+            "Summary renders as a single paragraph"
+          ]
+        },
+        {
+          "id": "MM-404",
+          "title": "Attendee Map view",
+          "asA": "user",
+          "iWant": "to see who spoke, how much, and what topics they owned",
+          "soThat": "I can assess participation quickly",
+          "priority": "medium",
+          "estimate": "M",
+          "evening": 1,
+          "acceptanceCriteria": [
+            "Renders attendees with topics and word count",
+            "Hidden when transcript has no speaker labels",
+            "Word count shown as a proportional bar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EPIC-05",
+      "name": "Export Formats",
+      "goal": "Produce copy-ready output for Notion, Confluence, Slack, and plain email.",
+      "stories": [
+        {
+          "id": "MM-501",
+          "title": "Notion export",
+          "asA": "user",
+          "iWant": "to copy output as Notion-compatible markdown",
+          "soThat": "pasting into Notion produces native to-do blocks",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Action items render as '- [ ] task' checkboxes",
+            "Headers use '# / ## / ###' consistent with Notion paste behaviour",
+            "Copy confirmation toast appears on success"
+          ]
+        },
+        {
+          "id": "MM-502",
+          "title": "Confluence export",
+          "asA": "user",
+          "iWant": "Confluence wiki markup output",
+          "soThat": "I can paste directly into a Confluence page",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Headers use h1./h2./h3. syntax",
+            "Action items render as Confluence task-list markup",
+            "Bullet lists use '*' with correct nesting"
+          ]
+        },
+        {
+          "id": "MM-503",
+          "title": "Slack export",
+          "asA": "user",
+          "iWant": "Slack-formatted message output",
+          "soThat": "I can drop it straight into a channel",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Headers use *bold* formatting",
+            "Bullet lists use '•' characters",
+            "Output is under Slack's message length limit or split with a notice"
+          ]
+        },
+        {
+          "id": "MM-504",
+          "title": "Plain email export",
+          "asA": "user",
+          "iWant": "a professional meeting-notes email body",
+          "soThat": "I can forward it with minimal editing",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 2,
+          "acceptanceCriteria": [
+            "Output is plain text with clear section headers",
+            "Includes suggested subject line derived from the summary",
+            "No markdown artefacts leak into the output"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EPIC-06",
+      "name": "Cross-Browser Packaging",
+      "goal": "Ship a working extension in Chrome, Edge, and Firefox.",
+      "stories": [
+        {
+          "id": "MM-601",
+          "title": "Chrome / Edge MV3 manifest",
+          "asA": "developer",
+          "iWant": "an MV3 manifest with the right permissions",
+          "soThat": "the extension loads in Chromium browsers",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 3,
+          "acceptanceCriteria": [
+            "Manifest declares content scripts for Meet and Teams domains",
+            "storage and activeTab permissions are declared",
+            "Service worker is registered as background"
+          ]
+        },
+        {
+          "id": "MM-602",
+          "title": "Firefox compatibility",
+          "asA": "developer",
+          "iWant": "the extension to run on Firefox",
+          "soThat": "Firefox users are supported",
+          "priority": "high",
+          "estimate": "M",
+          "evening": 3,
+          "acceptanceCriteria": [
+            "browser.* / chrome.* API differences are abstracted via a polyfill",
+            "Manifest passes web-ext lint",
+            "Loads in Firefox via about:debugging with full feature parity"
+          ]
+        },
+        {
+          "id": "MM-603",
+          "title": "Settings popup",
+          "asA": "user",
+          "iWant": "a settings screen",
+          "soThat": "I can configure my Claude API key and default export format",
+          "priority": "high",
+          "estimate": "S",
+          "evening": 3,
+          "acceptanceCriteria": [
+            "API key input is masked by default",
+            "Key is stored in chrome.storage.local, never chrome.storage.sync",
+            "Default export format selector persists across sessions"
+          ]
+        }
+      ]
+    }
+  ]
+}

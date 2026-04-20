@@ -1,0 +1,153 @@
+{
+  "product": "MeetingMapper",
+  "version": "1.0",
+  "documentDate": "2026-04-20",
+  "strategy": {
+    "pyramid": {
+      "unit": "60% — parsers, normalisers, export formatters, schema validation",
+      "integration": "30% — Claude API pipeline, chunking, content-script → background messaging",
+      "e2e": "10% — real Meet / Teams sessions, cross-browser packaging"
+    },
+    "tooling": {
+      "unit": "Vitest",
+      "component": "React Testing Library + Vitest",
+      "e2e": "Playwright with extension loading",
+      "mocking": "MSW for Claude API, fixture files for VTT/SRT/TXT"
+    },
+    "environments": ["Chrome stable", "Edge stable", "Firefox ESR"]
+  },
+  "testSuites": [
+    {
+      "suite": "Parsers",
+      "epic": "EPIC-01",
+      "level": "unit",
+      "cases": [
+        {"id": "T-PARSE-01", "title": "VTT with WEBVTT header is parsed", "input": "fixtures/meet-export.vtt", "expect": "array of {speaker,text,timestamp}, header skipped"},
+        {"id": "T-PARSE-02", "title": "VTT without speaker prefix returns speaker=null", "expect": "all entries have speaker null, text intact"},
+        {"id": "T-PARSE-03", "title": "VTT with multi-line cue text preserves line breaks", "expect": "cue text joined with single space"},
+        {"id": "T-PARSE-04", "title": "SRT parses numbered cue blocks", "input": "fixtures/zoom-export.srt", "expect": "matches expected normalised array"},
+        {"id": "T-PARSE-05", "title": "SRT handles comma-separated milliseconds", "expect": "timestamps parsed without throwing"},
+        {"id": "T-PARSE-06", "title": "VTT vs SRT produce identical output shape for equivalent content", "expect": "deep-equal normalised output"},
+        {"id": "T-PARSE-07", "title": "Plain text with 'Name: text' pattern extracts speakers", "expect": "speaker field populated per line"},
+        {"id": "T-PARSE-08", "title": "Plain text without speaker pattern falls back to unlabelled", "expect": "single block, speaker null"},
+        {"id": "T-PARSE-09", "title": "Empty file rejected with descriptive error", "expect": "throws ParseError('empty transcript')"},
+        {"id": "T-PARSE-10", "title": "Malformed VTT (missing timestamp) surfaces parse error", "expect": "throws with line number"},
+        {"id": "T-PARSE-11", "title": "File over 10MB rejected before parsing", "expect": "size-limit error surfaced to UI"}
+      ]
+    },
+    {
+      "suite": "Speaker diarisation cleanup",
+      "epic": "EPIC-03",
+      "level": "unit",
+      "cases": [
+        {"id": "T-DIAR-01", "title": "Consecutive same-speaker lines collapse", "expect": "merged entry retains earliest timestamp"},
+        {"id": "T-DIAR-02", "title": "Unlabelled blocks are preserved untouched", "expect": "no merging when speaker is null"},
+        {"id": "T-DIAR-03", "title": "Alternating speakers remain separate", "expect": "entry count unchanged"}
+      ]
+    },
+    {
+      "suite": "Claude extraction pipeline",
+      "epic": "EPIC-03",
+      "level": "integration",
+      "cases": [
+        {"id": "T-LLM-01", "title": "Short transcript routes through single-pass", "expect": "one Claude call, schema-valid response"},
+        {"id": "T-LLM-02", "title": "Long transcript (>threshold words) routes through multi-pass", "expect": "exactly two Claude calls"},
+        {"id": "T-LLM-03", "title": "Multi-pass chunk boundaries align with ~10-minute windows", "expect": "chunk count = ceil(duration/10min)"},
+        {"id": "T-LLM-04", "title": "Progress indicator transitions Extracting → Synthesising", "expect": "both states observed in UI during run"},
+        {"id": "T-LLM-05", "title": "Schema-invalid Claude response surfaces user-visible error", "expect": "error toast, no partial render"},
+        {"id": "T-LLM-06", "title": "Missing API key blocks the call with a clear message", "expect": "UI redirects to settings"},
+        {"id": "T-LLM-07", "title": "API 429 triggers retry with backoff", "expect": "at least one retry observed, then error surfaced if still failing"},
+        {"id": "T-LLM-08", "title": "Network failure mid-pass does not corrupt state", "expect": "popup returns to idle with retry option"}
+      ]
+    },
+    {
+      "suite": "Tabbed results UI",
+      "epic": "EPIC-04",
+      "level": "component",
+      "cases": [
+        {"id": "T-UI-01", "title": "All five tabs render with sample data", "expect": "each tab visible and selectable"},
+        {"id": "T-UI-02", "title": "Empty Action Items shows empty-state copy", "expect": "no checklist rendered"},
+        {"id": "T-UI-03", "title": "Priority badges colour-code correctly", "expect": "high/medium/low classes applied"},
+        {"id": "T-UI-04", "title": "Attendee Map hidden when no speaker labels", "expect": "tab not present in DOM"},
+        {"id": "T-UI-05", "title": "Keyboard arrows move between tabs", "expect": "focus and selection follow key presses"},
+        {"id": "T-UI-06", "title": "Unassigned owner renders as 'Unassigned'", "expect": "no raw null visible"}
+      ]
+    },
+    {
+      "suite": "Export formatters",
+      "epic": "EPIC-05",
+      "level": "unit",
+      "cases": [
+        {"id": "T-EXP-01", "title": "Notion export renders action items as '- [ ] task'", "expect": "checkbox syntax in output"},
+        {"id": "T-EXP-02", "title": "Notion paste-round-trip produces native to-do blocks", "level": "manual", "expect": "verified in Notion UI"},
+        {"id": "T-EXP-03", "title": "Confluence export uses h1./h2. headers", "expect": "wiki markup matches snapshot"},
+        {"id": "T-EXP-04", "title": "Confluence task-list markup is valid", "level": "manual", "expect": "verified by paste into Confluence"},
+        {"id": "T-EXP-05", "title": "Slack export uses *bold* headers and • bullets", "expect": "snapshot match"},
+        {"id": "T-EXP-06", "title": "Slack export over 40k chars splits with a notice", "expect": "output contains truncation notice"},
+        {"id": "T-EXP-07", "title": "Plain email export contains no markdown artefacts", "expect": "no '*', '#', or '- [ ]' in output"},
+        {"id": "T-EXP-08", "title": "Plain email subject line derived from summary", "expect": "subject is <=80 chars"},
+        {"id": "T-EXP-09", "title": "Copy-to-clipboard triggers confirmation toast", "level": "component", "expect": "toast visible for >=1s"}
+      ]
+    },
+    {
+      "suite": "Live caption capture",
+      "epic": "EPIC-02",
+      "level": "integration",
+      "cases": [
+        {"id": "T-CAP-01", "title": "Meet MutationObserver captures added caption nodes", "expect": "buffer grows as new nodes added to mock DOM"},
+        {"id": "T-CAP-02", "title": "Meet speaker label extracted from sibling element", "expect": "speaker field populated"},
+        {"id": "T-CAP-03", "title": "Empty-textContent nodes are ignored", "expect": "buffer unchanged"},
+        {"id": "T-CAP-04", "title": "Teams selector captures Teams-specific DOM", "expect": "same output shape as Meet"},
+        {"id": "T-CAP-05", "title": "Buffer persists to chrome.storage.session keyed by tab", "expect": "buffer survives popup close/reopen"},
+        {"id": "T-CAP-06", "title": "Process current meeting disabled when buffer empty", "level": "component", "expect": "button has disabled attribute"},
+        {"id": "T-CAP-07", "title": "Meet class-name-obfuscation regression test", "expect": "capture works using only structural selectors / ARIA"}
+      ]
+    },
+    {
+      "suite": "Cross-browser packaging",
+      "epic": "EPIC-06",
+      "level": "e2e",
+      "cases": [
+        {"id": "T-PKG-01", "title": "Chrome loads unpacked extension without manifest errors", "expect": "no console errors on install"},
+        {"id": "T-PKG-02", "title": "Edge loads the same package", "expect": "parity with Chrome"},
+        {"id": "T-PKG-03", "title": "Firefox loads via about:debugging", "expect": "all features work"},
+        {"id": "T-PKG-04", "title": "web-ext lint passes", "expect": "zero errors, warnings triaged"},
+        {"id": "T-PKG-05", "title": "API key stored in chrome.storage.local not sync", "expect": "verified in storage inspector"}
+      ]
+    },
+    {
+      "suite": "End-to-end happy paths",
+      "level": "e2e",
+      "cases": [
+        {"id": "T-E2E-01", "title": "Paste 15-min transcript → all five tabs populated → Notion export copied", "expect": "clipboard contains valid Notion markdown"},
+        {"id": "T-E2E-02", "title": "Upload .vtt file → multi-pass kicks in for 2-hour transcript", "expect": "two API calls observed"},
+        {"id": "T-E2E-03", "title": "Live Meet session capture → Process → results within 30s", "level": "manual", "expect": "real meeting verified"},
+        {"id": "T-E2E-04", "title": "Teams live session capture", "level": "manual", "expect": "parity with Meet"}
+      ]
+    }
+  ],
+  "nonFunctional": {
+    "performance": [
+      "VTT parse of 20,000-word transcript completes in <500ms",
+      "Popup first paint <200ms",
+      "Multi-pass end-to-end completes in <60s for 2-hour transcript"
+    ],
+    "security": [
+      "API key never logged or sent to any host other than api.anthropic.com",
+      "Content script does not exfiltrate caption data outside the extension",
+      "No eval / innerHTML on untrusted content"
+    ],
+    "privacy": [
+      "No analytics beacons on transcript content",
+      "Local storage clears on extension uninstall"
+    ]
+  },
+  "acceptanceGate": {
+    "release": [
+      "All unit + integration suites green",
+      "Manual Notion and Confluence paste verified",
+      "At least one real meeting end-to-end on Meet and Teams",
+      "Loads cleanly on Chrome, Edge, Firefox"
+    ]
+  }
+}
