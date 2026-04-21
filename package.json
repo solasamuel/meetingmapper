@@ -1,0 +1,16 @@
+{
+  "name": "meetingmapper",
+  "version": "0.1.0",
+  "description": "Cross-browser extension that turns meeting transcripts into structured action items, decisions, questions, and summaries.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  }
+}
