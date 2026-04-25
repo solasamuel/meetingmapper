@@ -42,7 +42,7 @@ describe("parseVtt — AC4 output shape", () => {
     const result = parseVtt(loadFixture("with-speakers.vtt"));
     expect(result.length).toBeGreaterThan(0);
     for (const entry of result) {
-      expect(Object.keys(entry).sort()).toEqual(["speaker", "text", "timestamp"]);
+      expect(Object.keys(entry).sort((a, b) => a.localeCompare(b))).toEqual(["speaker", "text", "timestamp"]);
       expect(typeof entry.text).toBe("string");
       expect(entry.speaker === null || typeof entry.speaker === "string").toBe(true);
       expect(entry.timestamp === null || typeof entry.timestamp === "string").toBe(true);

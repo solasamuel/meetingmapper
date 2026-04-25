@@ -1,22 +1,16 @@
 import { ParseError, type Transcript, type TranscriptEntry } from "./types.js";
 import { extractSpeaker } from "./speaker.js";
 
+const CUE_INDEX = /^\d+$/;
 const TIMESTAMP_LINE = /^(\d{2}:\d{2}:\d{2})[.,]\d{3}\s*-->/;
 
-export function parseVtt(input: string): Transcript {
+export function parseSrt(input: string): Transcript {
   if (input.trim() === "") {
     throw new ParseError("empty transcript");
   }
 
   const lines = input.split(/\r?\n/);
   const entries: TranscriptEntry[] = [];
-
-  let i = 0;
-  if (lines[0]?.startsWith("WEBVTT")) {
-    i = 1;
-  } else {
-    throw new ParseError("missing WEBVTT header", 1);
-  }
 
   let currentText: string[] = [];
   let currentTimestamp: string | null = null;
@@ -30,12 +24,13 @@ export function parseVtt(input: string): Transcript {
     }
   };
 
-  for (; i < lines.length; i++) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? "";
     if (line.trim() === "") {
       flush();
       continue;
     }
+    if (CUE_INDEX.test(line.trim())) continue;
     const tsMatch = TIMESTAMP_LINE.exec(line);
     if (tsMatch) {
       currentTimestamp = tsMatch[1] ?? null;
