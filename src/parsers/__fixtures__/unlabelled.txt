@@ -1,0 +1,3 @@
+This is a transcript without any speaker labels.
+It spans multiple lines and should be treated as one block.
+The whole thing is just plain prose.
