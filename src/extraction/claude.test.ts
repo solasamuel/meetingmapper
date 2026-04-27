@@ -158,3 +158,69 @@ describe("extractStructured — AC4 apiKey is required", () => {
     ).rejects.toThrow(/api.?key/i);
   });
 });
+
+describe("extractStructured — routing single vs multi-pass", () => {
+  const repeat = (word: string, n: number) => Array(n).fill(word).join(" ");
+
+  const validRawFacts = {
+    tasks_mentioned: ["Ship v1"],
+    decisions_mentioned: ["Friday release"],
+    questions_raised: [],
+    speakers_seen: ["Alice"],
+  };
+
+  const rawFactsResponse = {
+    content: [
+      { type: "tool_use" as const, id: "t1", name: "record_raw_facts", input: validRawFacts },
+    ],
+    stop_reason: "tool_use" as const,
+  };
+
+  it("uses single-pass (1 Claude call) for short transcripts under threshold", async () => {
+    createMock.mockResolvedValue(toolUseResponse(validResult));
+    await extractStructured(sampleTranscript, { apiKey: "k" });
+    expect(createMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses multi-pass (2 Claude calls) when transcript exceeds threshold", async () => {
+    const longTranscript: Transcript = [
+      { speaker: "A", text: repeat("word", 1600), timestamp: null },
+      { speaker: "B", text: repeat("word", 1600), timestamp: null },
+    ];
+
+    createMock
+      .mockResolvedValueOnce(rawFactsResponse)
+      .mockResolvedValueOnce(toolUseResponse(validResult));
+
+    await extractStructured(longTranscript, { apiKey: "k" });
+    expect(createMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards onProgress to the multi-pass path", async () => {
+    const longTranscript: Transcript = [
+      { speaker: "A", text: repeat("word", 1600), timestamp: null },
+      { speaker: "B", text: repeat("word", 1600), timestamp: null },
+    ];
+
+    createMock
+      .mockResolvedValueOnce(rawFactsResponse)
+      .mockResolvedValueOnce(toolUseResponse(validResult));
+
+    const stages: string[] = [];
+    await extractStructured(longTranscript, {
+      apiKey: "k",
+      onProgress: (s) => stages.push(s),
+    });
+    expect(stages).toEqual(["extracting", "synthesising"]);
+  });
+
+  it("does not invoke onProgress on the single-pass path", async () => {
+    createMock.mockResolvedValue(toolUseResponse(validResult));
+    const stages: string[] = [];
+    await extractStructured(sampleTranscript, {
+      apiKey: "k",
+      onProgress: (s) => stages.push(s),
+    });
+    expect(stages).toEqual([]);
+  });
+});

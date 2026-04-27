@@ -2,6 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Transcript } from "../parsers/types.js";
 import { ExtractionResultSchema, type ExtractionResult } from "./schema.js";
 import { SYSTEM_PROMPT, formatTranscriptForPrompt } from "./prompt.js";
+import { EXTRACTION_TOOL } from "./tools.js";
+import { countWords, MULTIPASS_THRESHOLD } from "./chunk.js";
+import { extractStructuredMultiPass, type ProgressStage } from "./multipass.js";
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4096;
@@ -10,6 +13,7 @@ export type ExtractionOptions = {
   apiKey: string;
   model?: string;
   maxTokens?: number;
+  onProgress?: (stage: ProgressStage) => void;
 };
 
 export class ExtractionError extends Error {
@@ -19,55 +23,6 @@ export class ExtractionError extends Error {
   }
 }
 
-const EXTRACTION_TOOL = {
-  name: "record_extraction",
-  description: "Records the structured extraction of a meeting transcript.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      action_items: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            task: { type: "string" },
-            owner: { type: ["string", "null"] },
-            due: { type: ["string", "null"] },
-            priority: { type: "string", enum: ["high", "medium", "low"] },
-          },
-          required: ["task", "owner", "due", "priority"],
-        },
-      },
-      decisions: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            decision: { type: "string" },
-            made_by: { type: ["string", "null"] },
-          },
-          required: ["decision", "made_by"],
-        },
-      },
-      open_questions: { type: "array", items: { type: "string" } },
-      summary: { type: "string" },
-      attendees: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            topics: { type: "array", items: { type: "string" } },
-            word_count: { type: "number" },
-          },
-          required: ["name", "topics", "word_count"],
-        },
-      },
-    },
-    required: ["action_items", "decisions", "open_questions", "summary", "attendees"],
-  },
-};
-
 export async function extractStructured(
   transcript: Transcript,
   opts: ExtractionOptions,
@@ -76,6 +31,10 @@ export async function extractStructured(
     throw new ExtractionError(
       "Anthropic apiKey is required — set it in the extension settings.",
     );
+  }
+
+  if (countWords(transcript) > MULTIPASS_THRESHOLD) {
+    return extractStructuredMultiPass(transcript, opts);
   }
 
   const client = new Anthropic({ apiKey: opts.apiKey });

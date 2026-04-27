@@ -30,3 +30,12 @@ export type ExtractionResult = z.infer<typeof ExtractionResultSchema>;
 export type ActionItem = z.infer<typeof ActionItemSchema>;
 export type Decision = z.infer<typeof DecisionSchema>;
 export type Attendee = z.infer<typeof AttendeeSchema>;
+
+export const RawFactsSchema = z.object({
+  tasks_mentioned: z.array(z.string()),
+  decisions_mentioned: z.array(z.string()),
+  questions_raised: z.array(z.string()),
+  speakers_seen: z.array(z.string()),
+});
+
+export type RawFacts = z.infer<typeof RawFactsSchema>;
