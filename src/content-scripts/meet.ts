@@ -1,31 +1,48 @@
-import { findCaptionContainer, isMeetHost, createMeetCaptureObserver } from "../capture/meet.js";
+import {
+  findCaptionContainer,
+  isMeetHost,
+  createMeetCaptureObserver,
+  type MeetCaptureObserver,
+} from "../capture/meet.js";
 import { ChromeSessionCaptionBuffer } from "../storage/session-buffer.js";
-import { waitForElement } from "./wait-for-element.js";
+import { watchForElement } from "./watch-for-element.js";
 import { getTabId } from "./get-tab-id.js";
 
 declare global {
-  interface Window {
-    __meetingmapperMeetAttached?: boolean;
-  }
+  // eslint-disable-next-line no-var
+  var __meetingmapperMeetAttached: boolean | undefined;
 }
 
+// Content scripts are bundled as IIFE, which does not support top-level
+// await. Wrap the bootstrap in an async IIFE and report failures via
+// .catch — SonarLint S7785's "prefer top-level await" advice does not
+// apply to extension content scripts.
 async function bootstrap(): Promise<void> {
-  if (window.__meetingmapperMeetAttached) return;
-  window.__meetingmapperMeetAttached = true;
+  if (globalThis.__meetingmapperMeetAttached) return;
+  globalThis.__meetingmapperMeetAttached = true;
 
-  if (!isMeetHost(window.location.hostname)) return;
+  if (!isMeetHost(globalThis.location.hostname)) return;
 
   const tabId = await getTabId();
   const buffer = new ChromeSessionCaptionBuffer(tabId);
   await buffer.hydrate();
 
-  const root = await waitForElement(findCaptionContainer);
-  const observer = createMeetCaptureObserver({ root, buffer });
-  observer.start();
+  let observer: MeetCaptureObserver | null = null;
 
-  console.info("[meetingmapper] Meet capture attached");
+  watchForElement(findCaptionContainer, {
+    onAppear: (root) => {
+      observer = createMeetCaptureObserver({ root, buffer });
+      observer.start();
+      console.info("[meetingmapper] Meet capture attached");
+    },
+    onDisappear: () => {
+      observer?.stop();
+      observer = null;
+      console.info("[meetingmapper] Meet caption container removed; capture paused");
+    },
+  });
 }
 
-bootstrap().catch((err) => {
+bootstrap().catch((err: unknown) => {
   console.error("[meetingmapper] Meet bootstrap failed:", err);
 });
