@@ -8,7 +8,7 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
-  width: 360px;
+  width: 380px;
   min-height: 200px;
   background: #fff;
   color: #1a1a1a;
@@ -17,6 +17,8 @@ body {
 #root {
   padding: 16px;
 }
+
+/* Header */
 
 .popup-header {
   display: flex;
@@ -39,5 +41,200 @@ body {
 }
 
 .popup-empty {
+  color: #666;
+  margin: 0;
+}
+
+.empty-state {
+  color: #888;
+  font-style: italic;
+  margin: 8px 0;
+}
+
+/* Tabs */
+
+.tabs-list {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 8px;
+  overflow-x: auto;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #555;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #1a4480;
+}
+
+.tab-selected {
+  color: #1a4480;
+  border-bottom-color: #1a4480;
+  font-weight: 600;
+}
+
+.tab:focus {
+  outline: 2px solid #1a4480;
+  outline-offset: -2px;
+}
+
+.tab-panel {
+  padding: 4px 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Action items */
+
+.action-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.action-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.action-item:last-child {
+  border-bottom: none;
+}
+
+.action-item input[type="checkbox"] {
+  margin-top: 3px;
+}
+
+.action-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.action-item-task {
+  display: block;
+  cursor: pointer;
+}
+
+.action-item-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #666;
+  flex-wrap: wrap;
+}
+
+.priority {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.priority-high {
+  background: #fde8e8;
+  color: #b42318;
+}
+
+.priority-medium {
+  background: #fff5cc;
+  color: #946800;
+}
+
+.priority-low {
+  background: #e8f5e8;
+  color: #1f7a1f;
+}
+
+/* Decisions / Open questions */
+
+.decisions,
+.open-questions {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.decisions li,
+.open-questions li {
+  padding: 3px 0;
+}
+
+.decision-by {
+  color: #666;
+  font-size: 12px;
+}
+
+/* Summary */
+
+.summary {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Attendees */
+
+.attendee-map {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.attendee {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.attendee:last-child {
+  border-bottom: none;
+}
+
+.attendee-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.attendee-name {
+  font-weight: 600;
+}
+
+.attendee-words {
+  font-size: 11px;
+  color: #666;
+}
+
+.word-count-bar {
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.word-count-bar-fill {
+  height: 100%;
+  background: #1a4480;
+  transition: width 200ms ease;
+}
+
+.attendee-topics {
+  margin-top: 4px;
+  font-size: 11px;
   color: #666;
 }
