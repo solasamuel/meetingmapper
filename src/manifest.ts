@@ -11,6 +11,11 @@ export default {
     default_title: "MeetingMapper",
   },
 
+  options_ui: {
+    page: "src/options/index.html",
+    open_in_tab: true,
+  },
+
   permissions: ["storage", "activeTab"],
 
   host_permissions: [
