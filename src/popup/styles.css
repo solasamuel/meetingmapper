@@ -117,6 +117,45 @@ body {
   font-size: 12px;
 }
 
+/* Export bar */
+
+.export-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.export-button {
+  padding: 4px 10px;
+  background: #f6f6f6;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  color: #333;
+}
+
+.export-button:hover {
+  background: #ececec;
+}
+
+.export-button[aria-pressed="true"] {
+  background: #1a4480;
+  border-color: #1a4480;
+  color: #fff;
+  font-weight: 500;
+}
+
+.copied-toast {
+  margin-left: auto;
+  color: #1f7a1f;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 /* Reset button (after a result) */
 
 .reset-button {

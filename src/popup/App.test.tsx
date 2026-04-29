@@ -53,6 +53,40 @@ describe("App — with result prop set externally", () => {
     render(<App result={sampleResult} extractFn={noopExtract} />);
     expect(screen.queryByLabelText(/paste transcript/i)).not.toBeInTheDocument();
   });
+
+  it("shows the ExportBar with all four format buttons when a result is present", () => {
+    render(<App result={sampleResult} extractFn={noopExtract} />);
+    expect(screen.getByRole("button", { name: /notion/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /confluence/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /slack/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /email/i })).toBeInTheDocument();
+  });
+
+  it("clicking an ExportBar button copies the matching format to the clipboard and shows a toast", async () => {
+    const user = userEvent.setup();
+    const copy = vi.fn().mockResolvedValue(undefined);
+    const formatters = {
+      notion: vi.fn(() => "## n"),
+      confluence: vi.fn(() => "h2. c"),
+      slack: vi.fn(() => "*s*"),
+      email: vi.fn(() => ({ subject: "s", body: "e" })),
+    };
+
+    render(
+      <App
+        result={sampleResult}
+        extractFn={noopExtract}
+        formatters={formatters}
+        copy={copy}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /notion/i }));
+
+    expect(formatters.notion).toHaveBeenCalledWith(sampleResult);
+    expect(copy).toHaveBeenCalledWith("## n");
+    expect(await screen.findByRole("status")).toHaveTextContent(/copied/i);
+  });
 });
 
 describe("App — paste → extract flow", () => {

@@ -7,16 +7,38 @@ import { OpenQuestionsView } from "./components/OpenQuestionsView.js";
 import { SummaryView } from "./components/SummaryView.js";
 import { AttendeeMapView } from "./components/AttendeeMapView.js";
 import { PasteInput } from "./components/PasteInput.js";
+import { ExportBar, type Formatters } from "./components/ExportBar.js";
 import { useExtraction, type ExtractFn } from "./use-extraction.js";
+import { useDefaultFormat } from "./use-default-format.js";
 import { runPasteExtraction } from "./run-paste-extraction.js";
+import { formatNotion } from "../exports/notion.js";
+import { formatConfluence } from "../exports/confluence.js";
+import { formatSlack } from "../exports/slack.js";
+import { formatEmail } from "../exports/email.js";
+import { copyToClipboard } from "../exports/clipboard.js";
+
+const DEFAULT_FORMATTERS: Formatters = {
+  notion: formatNotion,
+  confluence: formatConfluence,
+  slack: formatSlack,
+  email: formatEmail,
+};
 
 export type AppProps = {
   readonly result?: ExtractionResult | null;
   readonly extractFn?: ExtractFn;
+  readonly formatters?: Formatters;
+  readonly copy?: (text: string) => Promise<void>;
 };
 
-export function App({ result, extractFn = runPasteExtraction }: Readonly<AppProps> = {}) {
+export function App({
+  result,
+  extractFn = runPasteExtraction,
+  formatters = DEFAULT_FORMATTERS,
+  copy = copyToClipboard,
+}: Readonly<AppProps> = {}) {
   const extraction = useExtraction(extractFn);
+  const defaultFormat = useDefaultFormat();
 
   // Tests pass `result` directly; production uses the hook.
   const activeResult = result ?? extraction.result;
@@ -30,6 +52,12 @@ export function App({ result, extractFn = runPasteExtraction }: Readonly<AppProp
 
       {activeResult ? (
         <>
+          <ExportBar
+            result={activeResult}
+            formatters={formatters}
+            copy={copy}
+            defaultFormat={defaultFormat}
+          />
           <ResultView result={activeResult} />
           <button
             type="button"
