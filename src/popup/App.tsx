@@ -6,28 +6,53 @@ import { DecisionsView } from "./components/DecisionsView.js";
 import { OpenQuestionsView } from "./components/OpenQuestionsView.js";
 import { SummaryView } from "./components/SummaryView.js";
 import { AttendeeMapView } from "./components/AttendeeMapView.js";
+import { PasteInput } from "./components/PasteInput.js";
+import { useExtraction, type ExtractFn } from "./use-extraction.js";
+import { runPasteExtraction } from "./run-paste-extraction.js";
 
 export type AppProps = {
   readonly result?: ExtractionResult | null;
+  readonly extractFn?: ExtractFn;
 };
 
-export function App({ result }: Readonly<AppProps> = {}) {
+export function App({ result, extractFn = runPasteExtraction }: Readonly<AppProps> = {}) {
+  const extraction = useExtraction(extractFn);
+
+  // Tests pass `result` directly; production uses the hook.
+  const activeResult = result ?? extraction.result;
+
   return (
     <div>
       <header className="popup-header">
         <h1 className="popup-title">MeetingMapper</h1>
         <span className="popup-version">v{packageJson.version}</span>
       </header>
-      {result ? <ResultView result={result} /> : <EmptyState />}
-    </div>
-  );
-}
 
-function EmptyState() {
-  return (
-    <p className="popup-empty">
-      Paste a transcript, upload a file, or start a Meet / Teams call to capture captions.
-    </p>
+      {activeResult ? (
+        <>
+          <ResultView result={activeResult} />
+          <button
+            type="button"
+            className="reset-button"
+            onClick={extraction.reset}
+          >
+            New transcript
+          </button>
+        </>
+      ) : (
+        <>
+          <PasteInput
+            onSubmit={extraction.run}
+            busy={extraction.state === "running"}
+          />
+          {extraction.state === "error" && extraction.error && (
+            <p className="error-banner" role="alert">
+              {extraction.error.message}
+            </p>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
