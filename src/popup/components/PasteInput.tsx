@@ -32,7 +32,7 @@ export function PasteInput({ onSubmit, busy = false }: Readonly<PasteInputProps>
         disabled={!canSubmit}
         onClick={() => onSubmit(text)}
       >
-        {busy ? "Processing…" : "Process"}
+        {busy ? "Processing…" : "Process transcript"}
       </button>
     </div>
   );

@@ -7,15 +7,18 @@ import { OpenQuestionsView } from "./components/OpenQuestionsView.js";
 import { SummaryView } from "./components/SummaryView.js";
 import { AttendeeMapView } from "./components/AttendeeMapView.js";
 import { PasteInput } from "./components/PasteInput.js";
+import { ProcessMeetingButton } from "./components/ProcessMeetingButton.js";
 import { ExportBar, type Formatters } from "./components/ExportBar.js";
 import { useExtraction, type ExtractFn } from "./use-extraction.js";
 import { useDefaultFormat } from "./use-default-format.js";
-import { runPasteExtraction } from "./run-paste-extraction.js";
+import { useCurrentMeetingBuffer } from "./use-current-meeting-buffer.js";
+import { runExtraction, type ExtractInput } from "./run-extraction.js";
 import { formatNotion } from "../exports/notion.js";
 import { formatConfluence } from "../exports/confluence.js";
 import { formatSlack } from "../exports/slack.js";
 import { formatEmail } from "../exports/email.js";
 import { copyToClipboard } from "../exports/clipboard.js";
+import type { CaptionEntry } from "../capture/buffer.js";
 
 const DEFAULT_FORMATTERS: Formatters = {
   notion: formatNotion,
@@ -26,19 +29,23 @@ const DEFAULT_FORMATTERS: Formatters = {
 
 export type AppProps = {
   readonly result?: ExtractionResult | null;
-  readonly extractFn?: ExtractFn;
+  readonly extractFn?: ExtractFn<ExtractInput>;
   readonly formatters?: Formatters;
   readonly copy?: (text: string) => Promise<void>;
+  readonly meetingBuffer?: { entries: CaptionEntry[]; loading: boolean };
 };
 
 export function App({
   result,
-  extractFn = runPasteExtraction,
+  extractFn = runExtraction,
   formatters = DEFAULT_FORMATTERS,
   copy = copyToClipboard,
+  meetingBuffer,
 }: Readonly<AppProps> = {}) {
-  const extraction = useExtraction(extractFn);
+  const extraction = useExtraction<ExtractInput>(extractFn);
   const defaultFormat = useDefaultFormat();
+  const liveBuffer = useCurrentMeetingBuffer();
+  const buffer = meetingBuffer ?? liveBuffer;
 
   // Tests pass `result` directly; production uses the hook.
   const activeResult = result ?? extraction.result;
@@ -69,6 +76,11 @@ export function App({
         </>
       ) : (
         <>
+          <ProcessMeetingButton
+            entries={buffer.entries}
+            onClick={() => extraction.run(buffer.entries)}
+            busy={extraction.state === "running"}
+          />
           <PasteInput
             onSubmit={extraction.run}
             busy={extraction.state === "running"}

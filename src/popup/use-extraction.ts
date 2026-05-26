@@ -3,23 +3,25 @@ import type { ExtractionResult } from "../extraction/schema.js";
 
 export type ExtractionState = "idle" | "running" | "done" | "error";
 
-export type ExtractFn = (input: string) => Promise<ExtractionResult>;
+export type ExtractFn<TInput = string> = (input: TInput) => Promise<ExtractionResult>;
 
-export type UseExtraction = {
+export type UseExtraction<TInput = string> = {
   state: ExtractionState;
   result: ExtractionResult | null;
   error: Error | null;
-  run: (input: string) => void;
+  run: (input: TInput) => void;
   reset: () => void;
 };
 
-export function useExtraction(extractFn: ExtractFn): UseExtraction {
+export function useExtraction<TInput = string>(
+  extractFn: ExtractFn<TInput>,
+): UseExtraction<TInput> {
   const [state, setState] = useState<ExtractionState>("idle");
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   const run = useCallback(
-    (input: string) => {
+    (input: TInput) => {
       setState("running");
       setResult(null);
       setError(null);

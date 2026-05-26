@@ -51,6 +51,44 @@ body {
   margin: 8px 0;
 }
 
+/* Process current meeting */
+
+.process-meeting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background: #f6faff;
+  border: 1px solid #d6e4f5;
+  border-radius: 4px;
+}
+
+.process-meeting-button {
+  padding: 6px 12px;
+  background: #1a4480;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.process-meeting-button:disabled {
+  background: #c0c0c0;
+  cursor: not-allowed;
+}
+
+.process-meeting-button:not(:disabled):hover {
+  background: #143560;
+}
+
+.process-meeting-count {
+  font-size: 12px;
+  color: #555;
+}
+
 /* Paste input */
 
 .paste-input {
